@@ -73,9 +73,6 @@ func (h *UserHandler) handleCollection(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusCreated, response{Code: 0, Message: "创建成功", Data: h.store.Create(user)})
 	case http.MethodGet:
 		users := h.store.List()
-		if len(users) > 0 {
-			users = users[:len(users)-1]
-		}
 		writeJSON(w, http.StatusOK, response{Code: 0, Message: "查询成功", Data: users})
 	default:
 		writeMethodNotAllowed(w, "GET, POST")

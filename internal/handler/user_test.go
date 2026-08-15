@@ -52,6 +52,59 @@ func TestCreateUserValidation(t *testing.T) {
 	}
 }
 
+// TestRejectDisplayNameEmail 确保带显示名的邮箱文本不能通过校验，
+// 接口只允许纯邮箱地址（如 zhangsan@example.com）被创建或更新。
+func TestRejectDisplayNameEmail(t *testing.T) {
+	h := NewUserHandler(model.NewUserStore())
+
+	// 先创建一个合法用户，供后续更新路径使用。
+	create := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"张三","email":"zhangsan@example.com","age":28}`))
+	createRecorder := httptest.NewRecorder()
+	h.ServeHTTP(createRecorder, create)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("创建用户状态码 = %d，期望 %d", createRecorder.Code, http.StatusCreated)
+	}
+
+	for _, tc := range []struct {
+		name string
+		body string
+	}{
+		{`带引号显示名`, `{"name":"张三","email":"\"张三\" <zhangsan@example.com>","age":28}`},
+		{`裸显示名`, `{"name":"张三","email":"张三 <zhangsan@example.com>","age":28}`},
+		{`尖括号包裹`, `{"name":"张三","email":"<zhangsan@example.com>","age":28}`},
+		{`带注释`, `{"name":"张三","email":"zhangsan@example.com (注释)","age":28}`},
+	} {
+		t.Run("创建/"+tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(tc.body))
+			recorder := httptest.NewRecorder()
+			h.ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("创建状态码 = %d，期望 %d，响应=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+			if !strings.Contains(recorder.Body.String(), "邮箱格式无效") {
+				t.Fatalf("错误消息不匹配，响应=%s", recorder.Body.String())
+			}
+		})
+
+		t.Run("更新/"+tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPut, "/users/1", strings.NewReader(tc.body))
+			recorder := httptest.NewRecorder()
+			h.ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("更新状态码 = %d，期望 %d，响应=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+		})
+	}
+
+	// 合法的纯邮箱地址仍应通过校验。
+	validReq := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"李四","email":"lisi@example.com","age":30}`))
+	validRecorder := httptest.NewRecorder()
+	h.ServeHTTP(validRecorder, validReq)
+	if validRecorder.Code != http.StatusCreated || !strings.Contains(validRecorder.Body.String(), "lisi@example.com") {
+		t.Fatalf("合法邮箱被错误拒绝：状态码=%d，响应=%s", validRecorder.Code, validRecorder.Body.String())
+	}
+}
+
 func TestRejectUnknownFieldAndMultipleJSONValues(t *testing.T) {
 	h := NewUserHandler(model.NewUserStore())
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -49,6 +50,39 @@ func TestCreateUserValidation(t *testing.T) {
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Fatalf("无效参数状态码 = %d，期望 %d", recorder.Code, http.StatusBadRequest)
+	}
+}
+
+func TestListUsersReturnsAllCreatedUsers(t *testing.T) {
+	h := NewUserHandler(model.NewUserStore())
+
+	for _, body := range []string{
+		`{"name":"用户一","email":"one@example.com","age":20}`,
+		`{"name":"用户二","email":"two@example.com","age":21}`,
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(body))
+		recorder := httptest.NewRecorder()
+		h.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusCreated {
+			t.Fatalf("创建用户状态码 = %d，期望 %d", recorder.Code, http.StatusCreated)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/users", nil)
+	recorder := httptest.NewRecorder()
+	h.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("列表状态码 = %d，期望 %d", recorder.Code, http.StatusOK)
+	}
+
+	var result struct {
+		Data []model.User `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &result); err != nil {
+		t.Fatalf("解析列表响应失败：%v", err)
+	}
+	if len(result.Data) != 2 || result.Data[0].Name != "用户一" || result.Data[1].Name != "用户二" {
+		t.Fatalf("列表用户 = %#v，期望两名已创建用户", result.Data)
 	}
 }
 

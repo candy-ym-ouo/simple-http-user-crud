@@ -39,6 +39,13 @@ func TestUserCRUD(t *testing.T) {
 	if deleteRecorder.Code != http.StatusOK {
 		t.Fatalf("删除用户状态码 = %d，期望 %d", deleteRecorder.Code, http.StatusOK)
 	}
+
+	getAfterDelete := httptest.NewRequest(http.MethodGet, "/users/1", nil)
+	getAfterDeleteRecorder := httptest.NewRecorder()
+	h.ServeHTTP(getAfterDeleteRecorder, getAfterDelete)
+	if getAfterDeleteRecorder.Code != http.StatusNotFound {
+		t.Fatalf("删除后查询状态码 = %d，期望 %d，响应=%s", getAfterDeleteRecorder.Code, http.StatusNotFound, getAfterDeleteRecorder.Body.String())
+	}
 }
 
 func TestCreateUserValidation(t *testing.T) {

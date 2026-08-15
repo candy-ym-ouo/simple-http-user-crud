@@ -138,8 +138,8 @@ func validateUser(user model.User) error {
 	if user.Name == "" || len([]rune(user.Name)) > 50 {
 		return fmt.Errorf("姓名不能为空且长度不能超过 50 个字符")
 	}
-	_, err := mail.ParseAddress(user.Email)
-	if err != nil {
+	address, err := mail.ParseAddress(user.Email)
+	if err != nil || address.Address != user.Email {
 		return fmt.Errorf("邮箱格式无效")
 	}
 	if user.Age < 0 || user.Age > 150 {

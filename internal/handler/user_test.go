@@ -52,6 +52,36 @@ func TestCreateUserValidation(t *testing.T) {
 	}
 }
 
+func TestRejectDisplayNameEmailOnCreateAndUpdate(t *testing.T) {
+	h := NewUserHandler(model.NewUserStore())
+
+	create := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"张三","email":"张三 <zhangsan@example.com>","age":28}`))
+	createRecorder := httptest.NewRecorder()
+	h.ServeHTTP(createRecorder, create)
+	if createRecorder.Code != http.StatusBadRequest {
+		t.Fatalf("带显示名邮箱的创建状态码 = %d，期望 %d，响应=%s", createRecorder.Code, http.StatusBadRequest, createRecorder.Body.String())
+	}
+
+	validCreate := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"张三","email":"zhangsan@example.com","age":28}`))
+	validCreateRecorder := httptest.NewRecorder()
+	h.ServeHTTP(validCreateRecorder, validCreate)
+	if validCreateRecorder.Code != http.StatusCreated {
+		t.Fatalf("创建有效用户状态码 = %d，期望 %d", validCreateRecorder.Code, http.StatusCreated)
+	}
+
+	update := httptest.NewRequest(http.MethodPut, "/users/1", strings.NewReader(`{"name":"李四","email":"李四 <lisi@example.com>","age":30}`))
+	updateRecorder := httptest.NewRecorder()
+	h.ServeHTTP(updateRecorder, update)
+	if updateRecorder.Code != http.StatusBadRequest {
+		t.Fatalf("带显示名邮箱的更新状态码 = %d，期望 %d，响应=%s", updateRecorder.Code, http.StatusBadRequest, updateRecorder.Body.String())
+	}
+
+	user, err := h.store.Get(1)
+	if err != nil || user.Email != "zhangsan@example.com" {
+		t.Fatalf("无效更新不应保存：user=%+v，err=%v", user, err)
+	}
+}
+
 func TestRejectUnknownFieldAndMultipleJSONValues(t *testing.T) {
 	h := NewUserHandler(model.NewUserStore())
 

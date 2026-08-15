@@ -32,6 +32,10 @@ func TestUserCRUD(t *testing.T) {
 	if updateRecorder.Code != http.StatusOK || !strings.Contains(updateRecorder.Body.String(), "李四") {
 		t.Fatalf("更新用户失败：状态码=%d，响应=%s", updateRecorder.Code, updateRecorder.Body.String())
 	}
+	// 更新后必须保留原 ID，客户端才能继续按该 ID 操作。
+	if want := `"id":1`; !strings.Contains(updateRecorder.Body.String(), want) {
+		t.Fatalf("更新响应丢失原 ID：响应=%s", updateRecorder.Body.String())
+	}
 
 	deleteRequest := httptest.NewRequest(http.MethodDelete, "/users/1", nil)
 	deleteRecorder := httptest.NewRecorder()

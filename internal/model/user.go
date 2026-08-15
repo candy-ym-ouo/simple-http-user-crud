@@ -73,6 +73,9 @@ func (s *UserStore) Update(id int64, user User) (User, error) {
 	if _, ok := s.users[id]; !ok {
 		return User{}, ErrUserNotFound
 	}
+	// 入参 user 来自请求体，不含 ID；这里用路径指定的 ID 覆盖，
+	// 保证存储与返回的记录都保留原 ID，避免数据一致性问题。
+	user.ID = id
 	s.users[id] = user
 	return user, nil
 }

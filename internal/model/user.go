@@ -86,5 +86,6 @@ func (s *UserStore) Delete(id int64) error {
 	if _, ok := s.users[id]; !ok {
 		return ErrUserNotFound
 	}
+	delete(s.users, id)
 	return nil
 }

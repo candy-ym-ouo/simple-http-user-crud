@@ -68,6 +68,42 @@ func TestRejectUnknownFieldAndMultipleJSONValues(t *testing.T) {
 	}
 }
 
+func TestListUsersHasNoZeroValueRecord(t *testing.T) {
+	h := NewUserHandler(model.NewUserStore())
+
+	// 空列表：应返回空数组，而不是包含一条零值记录的数组。
+	list := httptest.NewRequest(http.MethodGet, "/users", nil)
+	listRecorder := httptest.NewRecorder()
+	h.ServeHTTP(listRecorder, list)
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("空列表状态码 = %d，期望 %d", listRecorder.Code, http.StatusOK)
+	}
+	if got := strings.TrimSpace(listRecorder.Body.String()); !strings.Contains(got, `"data":[]`) && !strings.Contains(got, `"data":{}`) {
+		// data 为空切片时 omitempty 会让字段消失；只要不出现 ID=0 的记录即可。
+	}
+	if strings.Contains(listRecorder.Body.String(), `"id":0`) {
+		t.Fatalf("空列表不应返回零值记录，响应=%s", listRecorder.Body.String())
+	}
+
+	// 创建一个用户后：列表中应恰好只有该用户，不混入零值记录。
+	create := httptest.NewRequest(http.MethodPost, "/users", strings.NewReader(`{"name":"张三","email":"zhangsan@example.com","age":28}`))
+	createRecorder := httptest.NewRecorder()
+	h.ServeHTTP(createRecorder, create)
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("创建用户状态码 = %d，期望 %d", createRecorder.Code, http.StatusCreated)
+	}
+
+	list2 := httptest.NewRequest(http.MethodGet, "/users", nil)
+	list2Recorder := httptest.NewRecorder()
+	h.ServeHTTP(list2Recorder, list2)
+	if list2Recorder.Code != http.StatusOK {
+		t.Fatalf("查询列表状态码 = %d，期望 %d", list2Recorder.Code, http.StatusOK)
+	}
+	if strings.Contains(list2Recorder.Body.String(), `"id":0`) {
+		t.Fatalf("用户列表混入了零值记录，响应=%s", list2Recorder.Body.String())
+	}
+}
+
 func TestMethodNotAllowedIncludesAllowHeader(t *testing.T) {
 	h := NewUserHandler(model.NewUserStore())
 	req := httptest.NewRequest(http.MethodPatch, "/users/1", nil)

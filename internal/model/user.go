@@ -57,7 +57,8 @@ func (s *UserStore) List() []User {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	users := make([]User, len(s.users))
+	// 长度设为 0、容量预分配，避免预置零值 User{} 混入结果（ID=0、姓名邮箱为空）。
+	users := make([]User, 0, len(s.users))
 	for _, user := range s.users {
 		users = append(users, user)
 	}

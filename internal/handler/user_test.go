@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -31,6 +32,28 @@ func TestUserCRUD(t *testing.T) {
 	h.ServeHTTP(updateRecorder, update)
 	if updateRecorder.Code != http.StatusOK || !strings.Contains(updateRecorder.Body.String(), "李四") {
 		t.Fatalf("更新用户失败：状态码=%d，响应=%s", updateRecorder.Code, updateRecorder.Body.String())
+	}
+	var updateResponse struct {
+		Data model.User `json:"data"`
+	}
+	if err := json.Unmarshal(updateRecorder.Body.Bytes(), &updateResponse); err != nil {
+		t.Fatalf("解析更新响应失败：%v", err)
+	}
+	if updateResponse.Data.ID != 1 {
+		t.Fatalf("更新响应中的用户 ID = %d，期望 1", updateResponse.Data.ID)
+	}
+
+	getAfterUpdate := httptest.NewRequest(http.MethodGet, "/users/1", nil)
+	getAfterUpdateRecorder := httptest.NewRecorder()
+	h.ServeHTTP(getAfterUpdateRecorder, getAfterUpdate)
+	var getResponse struct {
+		Data model.User `json:"data"`
+	}
+	if err := json.Unmarshal(getAfterUpdateRecorder.Body.Bytes(), &getResponse); err != nil {
+		t.Fatalf("解析更新后查询响应失败：%v", err)
+	}
+	if getAfterUpdateRecorder.Code != http.StatusOK || getResponse.Data.ID != 1 {
+		t.Fatalf("更新后查询用户失败：状态码=%d，用户 ID=%d", getAfterUpdateRecorder.Code, getResponse.Data.ID)
 	}
 
 	deleteRequest := httptest.NewRequest(http.MethodDelete, "/users/1", nil)

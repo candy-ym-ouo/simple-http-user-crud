@@ -73,6 +73,7 @@ func (s *UserStore) Update(id int64, user User) (User, error) {
 	if _, ok := s.users[id]; !ok {
 		return User{}, ErrUserNotFound
 	}
+	user.ID = id
 	s.users[id] = user
 	return user, nil
 }
